@@ -5,6 +5,8 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using YaProfiUrfu.Dto;
 using YaProfiUrfu.Entity;
 
@@ -15,10 +17,12 @@ namespace YaProfiUrfu.Controllers
     public class NotesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
 
-        public NotesController(AppDbContext context)
+        public NotesController(AppDbContext context, IConfiguration configuration)
         {
             _context = context;
+            _configuration = configuration;
         }
 
         /// <summary>
@@ -61,15 +65,56 @@ namespace YaProfiUrfu.Controllers
 
 
         /// <summary>
-        /// Получает все записи
+        /// Получает записи
         /// </summary>
+        /// <remarks>
+        /// Получение списка всех заметок, удовлетворяющих поисковому запросу
+        /// (т.е. запрос содержится в наименовании (title) или в тексте заметки (content))
+        ///
+        /// Если заголовок не указан - то вместо него возвращать первые N символов текста заметки,
+        /// где N - число, задаваемое в конфигурационном файле
+        /// </remarks>
+        /// <param name="query">[НЕ обязательный] параметр для фильтра заметок</param>
         /// <returns>Список всех заметок</returns>
         /// <response code="200">Успешно</response>
         [HttpGet]
-        public async Task<IEnumerable<Note>> Get()
+        public async Task<IEnumerable<Note>> Get(string query)
         {
-            return await _context.Notes.AsNoTracking().ToListAsync();
+            var headerHaveAnyValue = Request.Headers.Any();
+            if (string.IsNullOrEmpty(query))
+            {
+                if (headerHaveAnyValue) return await _context.Notes.AsNoTracking().ToListAsync();
+                var takeDefaultN = int.Parse(_configuration["TakeDefaultN"]);
+                return await _context.Notes.Take(takeDefaultN).AsNoTracking().ToListAsync();
+            }
+
+            if (headerHaveAnyValue)
+                return await _context.Notes
+                    .Where(note => note.Content.Contains(query) || note.Title.Contains(query))
+                    .AsNoTracking()
+                    .ToListAsync();
+            {
+                var takeDefaultN = int.Parse(_configuration["TakeDefaultN"]);
+                return await _context.Notes
+                    .Where(note => note.Content.Contains(query) || note.Title.Contains(query))
+                    .Take(takeDefaultN)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
         }
+
+        /// <summary>
+        /// Получает запись по ключу
+        /// </summary>
+        /// <returns>Найденную запись по ключу</returns>
+        /// <response code="200">Успешно найдена</response>
+        /// <response code="204">Запись не найдена</response>
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult<Note>> GetByKey(int id)
+        {
+            return await _context.Notes.FindAsync(id);
+        }
+
 
         /// <summary>
         /// Изменение заметки
