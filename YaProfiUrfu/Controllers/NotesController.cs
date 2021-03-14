@@ -116,21 +116,11 @@ namespace YaProfiUrfu.Controllers
         /// <summary>
         /// Удаление заметки
         /// </summary>
-        /// <remarks>
-        /// В запросе передается body в формате JSON
-        ///  
-        ///     PUT /notes/{id:int}
-        ///     {  
-        ///         “title”: “string”,
-        ///         “content”: “string”
-        ///     }
-        /// </remarks>
-        /// <param name="id">Номер обновляемой заметки</param>
-        /// <param name="note">Новые параметры заметки</param>
-        /// <returns>Обновленная заметка Note</returns>
-        /// <response code="200">Возвращен если запись была успешно обновлена</response>
+        /// <param name="id">Номер удаляемой заметки</param>
+        /// <returns>удаленная заметка Note</returns>
+        /// <response code="200">Возвращен если запись была успешно удалена</response>
         /// <response code="400">Если возникла ошибка</response>
-        [HttpDelete("{id}")]
+        [HttpDelete("{id:int}")]
         public async Task<ActionResult<Note>> Delete(int id)
         {
             try
