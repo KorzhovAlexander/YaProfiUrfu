@@ -42,12 +42,37 @@ namespace YaProfiUrfu.Controllers
                 return BadRequest();
             }
         }
-        
-        
+
+
         [HttpGet]
         public async Task<IEnumerable<Note>> Get()
         {
             return await _context.Notes.AsNoTracking().ToListAsync();
+        }
+
+        [HttpPut("{id}")]
+        public async Task<ActionResult<Note>> Put(int id, NoteCreateDto note)
+        {
+            try
+            {
+                var entity = await _context.Notes.FindAsync(id);
+
+                if (entity == null)
+                {
+                    return NotFound("такой записи нет");
+                }
+
+                entity.Content = note.Content;
+                entity.Title = note.Title;
+                await _context.SaveChangesAsync();
+
+                return StatusCode(StatusCodes.Status200OK, entity);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                return BadRequest();
+            }
         }
     }
 }
