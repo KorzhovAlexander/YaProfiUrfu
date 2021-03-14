@@ -50,6 +50,7 @@ namespace YaProfiUrfu.Controllers
                 {
                     return StatusCode(StatusCodes.Status400BadRequest, "Контент должен быть указан");
                 }
+
                 var entity = new Note
                 {
                     Content = note.Content,
@@ -156,8 +157,13 @@ namespace YaProfiUrfu.Controllers
                     return NotFound("такой записи нет");
                 }
 
+                if (note == null || string.IsNullOrEmpty(note.Content))
+                {
+                    return StatusCode(StatusCodes.Status400BadRequest, "Контент должен быть указан");
+                }
+
                 entity.Content = note.Content;
-                entity.Title = note.Title;
+                entity.Title = string.IsNullOrEmpty(note.Title) ? null : note.Title;
                 await _context.SaveChangesAsync();
 
                 return StatusCode(StatusCodes.Status200OK, entity);
