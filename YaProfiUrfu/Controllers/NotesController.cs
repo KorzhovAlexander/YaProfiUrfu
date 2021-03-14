@@ -40,16 +40,20 @@ namespace YaProfiUrfu.Controllers
         /// <param name="note">Создаваемая запись</param>
         /// <returns>Новая созданная заметка Note</returns>
         /// <response code="201">Возвращен если запись была успешно создана</response>
-        /// <response code="400">Если возникла ошибка</response>
+        /// <response code="400">Если возникла ошибка (к примеру "контент должен быть указан")</response>
         [HttpPost]
         public async Task<ActionResult<Note>> Create(NoteCreateDto note)
         {
             try
             {
+                if (note == null || string.IsNullOrEmpty(note.Content))
+                {
+                    return StatusCode(StatusCodes.Status400BadRequest, "Контент должен быть указан");
+                }
                 var entity = new Note
                 {
                     Content = note.Content,
-                    Title = note.Title,
+                    Title = string.IsNullOrEmpty(note.Title) ? null : note.Title,
                 };
                 await _context.AddAsync(entity);
                 await _context.SaveChangesAsync();
@@ -80,27 +84,27 @@ namespace YaProfiUrfu.Controllers
         [HttpGet]
         public async Task<IEnumerable<Note>> Get(string query)
         {
-            var headerHaveAnyValue = Request.Headers.Any();
+            var takeDefaultN = int.Parse(_configuration["TakeDefaultN"]);
+
             if (string.IsNullOrEmpty(query))
             {
-                if (headerHaveAnyValue) return await _context.Notes.AsNoTracking().ToListAsync();
-                var takeDefaultN = int.Parse(_configuration["TakeDefaultN"]);
-                return await _context.Notes.Take(takeDefaultN).AsNoTracking().ToListAsync();
+                return await _context.Notes.Select(note => new Note
+                {
+                    Id = note.Id,
+                    Content = note.Content,
+                    Title = note.Title ?? note.Content.Substring(0, Math.Min(note.Content.Length, takeDefaultN))
+                }).ToListAsync();
             }
 
-            if (headerHaveAnyValue)
-                return await _context.Notes
-                    .Where(note => note.Content.Contains(query) || note.Title.Contains(query))
-                    .AsNoTracking()
-                    .ToListAsync();
-            {
-                var takeDefaultN = int.Parse(_configuration["TakeDefaultN"]);
-                return await _context.Notes
-                    .Where(note => note.Content.Contains(query) || note.Title.Contains(query))
-                    .Take(takeDefaultN)
-                    .AsNoTracking()
-                    .ToListAsync();
-            }
+            return await _context.Notes
+                .Where(note => note.Content.Contains(query) || note.Title.Contains(query))
+                .Select(note => new Note
+                {
+                    Id = note.Id,
+                    Content = note.Content,
+                    Title = note.Title ?? note.Content.Substring(0, Math.Min(note.Content.Length, takeDefaultN))
+                })
+                .ToListAsync();
         }
 
         /// <summary>
@@ -112,7 +116,14 @@ namespace YaProfiUrfu.Controllers
         [HttpGet("{id:int}")]
         public async Task<ActionResult<Note>> GetByKey(int id)
         {
-            return await _context.Notes.FindAsync(id);
+            var takeDefaultN = int.Parse(_configuration["TakeDefaultN"]);
+
+            return await _context.Notes.Select(note => new Note
+            {
+                Id = note.Id,
+                Content = note.Content,
+                Title = note.Title ?? note.Content.Substring(0, Math.Min(note.Content.Length, takeDefaultN))
+            }).FirstOrDefaultAsync(note => note.Id == id);
         }
 
 
